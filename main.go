@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/tamalsaha/dynamic-demo/factory"
 	"k8s.io/apimachinery/pkg/labels"
 	"log"
 	"path/filepath"
@@ -33,12 +34,23 @@ func main(){
 		Resource: "pods",
 	}
 
-	factory := New(dc)
-	objects, err := factory.ForResource(gvrPod).List(labels.Everything())
+	directFactory := factory.New(dc)
+	objects, err := directFactory.ForResource(gvrPod).List(labels.Everything())
 	if err != nil {
 		panic(err)
 	}
 	for _, obj := range objects {
+		fmt.Println(obj.GetName())
+	}
+
+	fmt.Println("---------------------------------------------------------")
+
+	cachedFactory := factory.NewCached(dc, 0, context.TODO().Done())
+	objects2, err := cachedFactory.ForResource(gvrPod).List(labels.Everything())
+	if err != nil {
+		panic(err)
+	}
+	for _, obj := range objects2 {
 		fmt.Println(obj.GetName())
 	}
 }

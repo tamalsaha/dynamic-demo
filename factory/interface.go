@@ -1,4 +1,4 @@
-package main
+package factory
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -12,14 +12,14 @@ type Factory interface {
 	ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister
 }
 
-func New(dc dynamic.Interface) Factory{
+func New(dc dynamic.Interface) Factory {
 	return &directImpl{
 		dc:      dc,
 		listers: map[schema.GroupVersionResource]dynamiclister.Lister{},
 	}
 }
 
-func NewCached(dc dynamic.Interface, defaultResync time.Duration, stopCh <-chan struct{}) Factory{
+func NewCached(dc dynamic.Interface, defaultResync time.Duration, stopCh <-chan struct{}) Factory {
 	return &cachedImpl{
 		factory: dynamicinformer.NewDynamicSharedInformerFactory(dc, defaultResync),
 		stopCh:  stopCh,
@@ -27,7 +27,7 @@ func NewCached(dc dynamic.Interface, defaultResync time.Duration, stopCh <-chan 
 	}
 }
 
-func NewFilteredCached(dc dynamic.Interface, defaultResync time.Duration, namespace string, tweakListOptions dynamicinformer.TweakListOptionsFunc, stopCh <-chan struct{}) Factory{
+func NewFilteredCached(dc dynamic.Interface, defaultResync time.Duration, namespace string, tweakListOptions dynamicinformer.TweakListOptionsFunc, stopCh <-chan struct{}) Factory {
 	return &cachedImpl{
 		factory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, defaultResync, namespace, tweakListOptions),
 		stopCh:  stopCh,
