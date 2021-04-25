@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamiclister"
 )
 
-type informerImpl struct {
+type cachedImpl struct {
 	factory dynamicinformer.DynamicSharedInformerFactory
 	stopCh  <-chan struct{}
 
@@ -17,9 +17,9 @@ type informerImpl struct {
 	listers map[schema.GroupVersionResource]dynamiclister.Lister
 }
 
-var _ Factory = &informerImpl{}
+var _ Factory = &cachedImpl{}
 
-func (i informerImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i cachedImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	l := i.existingForResource(gvr)
 	if l != nil {
 		return l
@@ -27,7 +27,7 @@ func (i informerImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister
 	return i.newForResource(gvr)
 }
 
-func (i informerImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i cachedImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -41,7 +41,7 @@ func (i informerImpl) newForResource(gvr schema.GroupVersionResource) dynamiclis
 	return l
 }
 
-func (i informerImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i cachedImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	l, ok := i.listers[gvr]

@@ -16,16 +16,16 @@ import (
 	"k8s.io/client-go/tools/pager"
 )
 
-type clientImpl struct {
+type directImpl struct {
 	dc dynamic.Interface
 
 	lock    sync.RWMutex
 	listers map[schema.GroupVersionResource]dynamiclister.Lister
 }
 
-var _ Factory = &clientImpl{}
+var _ Factory = &directImpl{}
 
-func (i clientImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i directImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	l := i.existingForResource(gvr)
 	if l != nil {
 		return l
@@ -33,16 +33,16 @@ func (i clientImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.L
 	return i.newForResource(gvr)
 }
 
-func (i clientImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i directImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	l := New(i.dc, gvr)
+	l := newLister(i.dc, gvr)
 	i.listers[gvr] = l
 	return l
 }
 
-func (i clientImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i directImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	l, ok := i.listers[gvr]
@@ -61,8 +61,8 @@ type dynamicLister struct {
 	gvr schema.GroupVersionResource
 }
 
-// New returns a new Lister.
-func New(dc dynamic.Interface, gvr schema.GroupVersionResource) dynamiclister.Lister {
+// newLister returns a new Lister.
+func newLister(dc dynamic.Interface, gvr schema.GroupVersionResource) dynamiclister.Lister {
 	return &dynamicLister{dc: dc, gvr: gvr}
 }
 

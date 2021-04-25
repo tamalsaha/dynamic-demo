@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/labels"
 	"log"
 	"path/filepath"
 
@@ -15,7 +16,34 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-func main() {
+func main(){
+	masterURL := ""
+	kubeconfigPath := filepath.Join(homedir.HomeDir(), ".kube", "config")
+
+	config, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfigPath)
+	if err != nil {
+		log.Fatalf("Could not get Kubernetes config: %s", err)
+	}
+
+	dc := dynamic.NewForConfigOrDie(config)
+
+	gvrPod := schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "pods",
+	}
+
+	factory := New(dc)
+	objects, err := factory.ForResource(gvrPod).List(labels.Everything())
+	if err != nil {
+		panic(err)
+	}
+	for _, obj := range objects {
+		fmt.Println(obj.GetName())
+	}
+}
+
+func main_raw() {
 	masterURL := ""
 	kubeconfigPath := filepath.Join(homedir.HomeDir(), ".kube", "config")
 
