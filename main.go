@@ -3,22 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/discovery/cached/memory"
-	"k8s.io/client-go/dynamic"
-	clientscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/restmapper"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	"log"
 	"path/filepath"
-	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
-	"sigs.k8s.io/cli-utils/pkg/kstatus/status"
-	"sigs.k8s.io/cli-utils/pkg/object"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/dynamiclister"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 func main() {
@@ -31,6 +25,7 @@ func main() {
 	}
 
 	dc := dynamic.NewForConfigOrDie(config)
+
 	nodes, err := dc.Resource(schema.GroupVersionResource{
 		Group:    "",
 		Version:  "v1",
@@ -41,44 +36,37 @@ func main() {
 	}
 
 	for _, obj := range nodes.Items {
-		s, err := status.Compute(&obj)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%+v\n", *s)
+		fmt.Printf("%+v\n", obj.GetName())
 	}
 
-	disco := discovery.NewDiscoveryClientForConfigOrDie(config)
-	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(disco))
+	gvrPod := schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "pods",
+	}
 
-	reader, err := client.New(config, client.Options{
-		Scheme: clientscheme.Scheme,
-		Mapper: mapper,
+	ctx := context.TODO()
+
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, 0, "default", nil)
+	informerPod := factory.ForResource(gvrPod)
+	factory.Start(ctx.Done())
+	if synced := factory.WaitForCacheSync(ctx.Done()); !synced[gvrPod] {
+		panic(fmt.Sprintf("informer for %s hasn't synced", gvrPod))
+	}
+	listerPod := dynamiclister.New(informerPod.Informer().GetIndexer(), gvrPod)
+
+	sel, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels:      nil,
+		MatchExpressions: nil,
 	})
 	if err != nil {
 		panic(err)
 	}
-	poller := polling.NewStatusPoller(reader, mapper)
-
-	ids := []object.ObjMetadata{
-		{
-			Namespace: "default",
-			Name:      "busybox",
-			GroupKind: schema.GroupKind{
-				Group: "",
-				Kind:  "Pod",
-			},
-		},
+	result, err := listerPod.Namespace("default").List(sel)
+	if err != nil {
+		panic(err)
 	}
-
-	fmt.Println("----")
-
-	ch := poller.Poll(context.TODO(), ids, polling.Options{
-		PollInterval: 2 * time.Second,
-		UseCache:     false,
-	})
-	for e := range ch {
-		fmt.Printf("%s, err: %v, rs:%+v\n", e.EventType, e.Error, *e.Resource)
+	for _, obj := range result {
+		fmt.Println(obj.GetName())
 	}
 }
-
