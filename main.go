@@ -39,21 +39,7 @@ func main() {
 		fmt.Printf("%+v\n", obj.GetName())
 	}
 
-	gvrPod := schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "pods",
-	}
-
 	ctx := context.TODO()
-
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, 0, "default", nil)
-	informerPod := factory.ForResource(gvrPod)
-	factory.Start(ctx.Done())
-	if synced := factory.WaitForCacheSync(ctx.Done()); !synced[gvrPod] {
-		panic(fmt.Sprintf("informer for %s hasn't synced", gvrPod))
-	}
-	listerPod := dynamiclister.New(informerPod.Informer().GetIndexer(), gvrPod)
 
 	sel, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels:      nil,
@@ -62,11 +48,45 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dc, 0, metav1.NamespaceAll, nil)
+
+	gvrPod := schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "pods",
+	}
+	informerPod := factory.ForResource(gvrPod)
+	factory.Start(ctx.Done())
+	if synced := factory.WaitForCacheSync(ctx.Done()); !synced[gvrPod] {
+		panic(fmt.Sprintf("informer for %s hasn't synced", gvrPod))
+	}
+	listerPod := dynamiclister.New(informerPod.Informer().GetIndexer(), gvrPod)
+
 	result, err := listerPod.Namespace("default").List(sel)
 	if err != nil {
 		panic(err)
 	}
 	for _, obj := range result {
+		fmt.Println(obj.GetName())
+	}
+
+	gvrDep := schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	}
+	informerDep := factory.ForResource(gvrDep)
+	factory.Start(ctx.Done())
+	if synced := factory.WaitForCacheSync(ctx.Done()); !synced[gvrDep] {
+		panic(fmt.Sprintf("informer for %s hasn't synced", gvrDep))
+	}
+	listerDep := dynamiclister.New(informerDep.Informer().GetIndexer(), gvrDep)
+	result2, err := listerDep.Namespace("kube-system").List(sel)
+	if err != nil {
+		panic(err)
+	}
+	for _, obj := range result2 {
 		fmt.Println(obj.GetName())
 	}
 }
