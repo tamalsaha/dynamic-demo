@@ -25,7 +25,7 @@ type directImpl struct {
 
 var _ Factory = &directImpl{}
 
-func (i directImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i *directImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	l := i.existingForResource(gvr)
 	if l != nil {
 		return l
@@ -33,7 +33,7 @@ func (i directImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.L
 	return i.newForResource(gvr)
 }
 
-func (i directImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i *directImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -42,7 +42,7 @@ func (i directImpl) newForResource(gvr schema.GroupVersionResource) dynamicliste
 	return l
 }
 
-func (i directImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i *directImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	l, ok := i.listers[gvr]

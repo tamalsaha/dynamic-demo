@@ -19,7 +19,7 @@ type cachedImpl struct {
 
 var _ Factory = &cachedImpl{}
 
-func (i cachedImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i *cachedImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	l := i.existingForResource(gvr)
 	if l != nil {
 		return l
@@ -27,7 +27,7 @@ func (i cachedImpl) ForResource(gvr schema.GroupVersionResource) dynamiclister.L
 	return i.newForResource(gvr)
 }
 
-func (i cachedImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i *cachedImpl) newForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -41,7 +41,7 @@ func (i cachedImpl) newForResource(gvr schema.GroupVersionResource) dynamicliste
 	return l
 }
 
-func (i cachedImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
+func (i *cachedImpl) existingForResource(gvr schema.GroupVersionResource) dynamiclister.Lister {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	l, ok := i.listers[gvr]
