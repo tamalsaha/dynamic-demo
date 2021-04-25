@@ -35,7 +35,12 @@ func main(){
 	}
 
 	directFactory := factory.New(dc)
-	objects, err := directFactory.ForResource(gvrPod).List(labels.Everything())
+
+	sel, err := labels.Parse("k8s-app=kube-dns")
+	if err != nil {
+		panic(err)
+	}
+	objects, err := directFactory.ForResource(gvrPod).List(sel)
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +51,7 @@ func main(){
 	fmt.Println("---------------------------------------------------------")
 
 	cachedFactory := factory.NewCached(dc, 0, context.TODO().Done())
-	objects2, err := cachedFactory.ForResource(gvrPod).List(labels.Everything())
+	objects2, err := cachedFactory.ForResource(gvrPod).List(sel)
 	if err != nil {
 		panic(err)
 	}
